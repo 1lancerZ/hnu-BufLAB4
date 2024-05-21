@@ -500,8 +500,8 @@ fizz():
  8048daf:	55                   	push   %ebp
  8048db0:	89 e5                	mov    %esp,%ebp
  8048db2:	83 ec 18             	sub    $0x18,%esp
- 8048db5:	8b 45 08             	mov    0x8(%ebp),%eax
- 8048db8:	3b 05 04 d1 04 08    	cmp    0x804d104,%eax
+ 8048db5:	8b 45 08             	mov    0x8(%ebp),%eax				# 0x8(%ebp)这个位置对应的输入的字符串的第52个字符
+ 8048db8:	3b 05 04 d1 04 08    	cmp    0x804d104,%eax				# 0x804d104存的cookie
  8048dbe:	75 26                	jne    8048de6 <fizz+0x37>
  8048dc0:	89 44 24 08          	mov    %eax,0x8(%esp)
  8048dc4:	c7 44 24 04 e0 a2 04 	movl   $0x804a2e0,0x4(%esp)
