@@ -539,12 +539,12 @@ test():
  8048e3d:	89 e5                	mov    %esp,%ebp
  8048e3f:	53                   	push   %ebx
  8048e40:	83 ec 24             	sub    $0x24,%esp
- 8048e43:	e8 d0 fd ff ff       	call   8048c18 <uniqueval>			# 第一个uniqueval存在%eax
+ 8048e43:	e8 d0 fd ff ff       	call   8048c18 <uniqueval>			# 第一个uniqueval存在%edx
  8048e48:	89 45 f4             	mov    %eax,-0xc(%ebp)
  8048e4b:	e8 12 04 00 00       	call   8049262 <getbuf>				# 根据这个getbuf的缓冲区溢出跳转到别的函数
- 8048e50:	89 c3                	mov    %eax,%ebx
- 8048e52:	e8 c1 fd ff ff       	call   8048c18 <uniqueval>			# 第二个uniqueval存在%edx
- 8048e57:	8b 55 f4             	mov    -0xc(%ebp),%edx
+ 8048e50:	89 c3                	mov    %eax,%ebx					# getbuf的返回值存在%ebx
+ 8048e52:	e8 c1 fd ff ff       	call   8048c18 <uniqueval>			# 第二个uniqueval存在%eax
+ 8048e57:	8b 55 f4             	mov    -0xc(%ebp),%edx				# 执行到这里时发生段错误，%ebp出问题
  8048e5a:	39 d0                	cmp    %edx,%eax
  8048e5c:	74 16                	je     8048e74 <test+0x38>
  8048e5e:	c7 44 24 04 60 a4 04 	movl   $0x804a460,0x4(%esp)

