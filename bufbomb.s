@@ -440,7 +440,7 @@ testn():
  8048cd2:	83 ec 24             	sub    $0x24,%esp
  8048cd5:	e8 3e ff ff ff       	call   8048c18 <uniqueval>
  8048cda:	89 45 f4             	mov    %eax,-0xc(%ebp)
- 8048cdd:	e8 62 05 00 00       	call   8049244 <getbufn>
+ 8048cdd:	e8 62 05 00 00       	call   8049244 <getbufn>		# 攻击代码太长把uniqueval的返回值-0xc(%ebp)覆盖了
  8048ce2:	89 c3                	mov    %eax,%ebx
  8048ce4:	e8 2f ff ff ff       	call   8048c18 <uniqueval>
  8048ce9:	8b 55 f4             	mov    -0xc(%ebp),%edx
@@ -820,7 +820,7 @@ getbufn():
  8049244:	55                   	push   %ebp
  8049245:	89 e5                	mov    %esp,%ebp
  8049247:	81 ec 18 02 00 00    	sub    $0x218,%esp
- 804924d:	8d 85 f8 fd ff ff    	lea    -0x208(%ebp),%eax
+ 804924d:	8d 85 f8 fd ff ff    	lea    -0x208(%ebp),%eax		# 缓冲区大小520
  8049253:	89 04 24             	mov    %eax,(%esp)
  8049256:	e8 d7 f9 ff ff       	call   8048c32 <Gets>
  804925b:	b8 01 00 00 00       	mov    $0x1,%eax
